@@ -28,7 +28,7 @@ def fetch_html_with_curl(url):
             "-A", SAFARI_USER_AGENT, headers,  # SafariのUser-Agentを設定
             url
         ]
-        result = subprocess.run(curl_command, headers=headers, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(curl_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         # エラーがあれば処理
         if result.returncode != 0:
