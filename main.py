@@ -22,6 +22,7 @@ def fetch_html_with_curl(url):
         curl_command = [
             "curl", "-s", "-L",
             "-A", SAFARI_USER_AGENT,  # SafariのUser-Agentを設定
+            "-H", "Accept-Language: ja-JP,ja;q=0.9",  # 言語設定
             "-H", "X-Location: Japan, Kanagawa, Sagamihara, Kamitsuruma",  # カスタムヘッダーを追加
             "-H", "X-Forwarded-For: 114.129.4.213",
             url
