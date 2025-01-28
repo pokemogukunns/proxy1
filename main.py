@@ -1,6 +1,10 @@
-from flask import Flask, request, jsonify
+import requests
 import subprocess
 import re
+import base64
+from flask import Flask, request, jsonify, render_template_string
+from PIL import Image
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -10,11 +14,31 @@ SAFARI_USER_AGENT = (
     "(KHTML, like Gecko) Version/14.1.2 Safari/537.36"
 )
 
+# HTMLテンプレート（画像を表示するためのもの）
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Viewer</title>
+</head>
+<body>
+    <h1>Fetched Images</h1>
+    {% for image in images %}
+    <div>
+        <img src="{{ image }}" alt="Image" style="max-width: 100%; height: auto;">
+    </div>
+    {% endfor %}
+</body>
+</html>
+"""
+
 def fetch_images_with_curl(url):
     try:
         # curlコマンドを実行
         curl_command = [
-            "curl", "-s", "-L", 
+            "curl", "-s", "-L",
             "-A", SAFARI_USER_AGENT,  # SafariのUser-Agentを設定
             url
         ]
@@ -38,6 +62,28 @@ def fetch_images_with_curl(url):
     except Exception as e:
         return {"error": str(e)}
 
+def fetch_and_display_image(image_url):
+    try:
+        # 画像を取得
+        response = requests.get(image_url)
+        response.raise_for_status()
+
+        # 画像データをBase64にエンコード
+        encoded_image = base64.b64encode(response.content).decode('utf-8')
+
+        # Base64データをデコードして画像を復元
+        decoded_image = base64.b64decode(encoded_image)
+        image = Image.open(BytesIO(decoded_image))
+
+        # 画像を表示
+        image.show()
+
+        return encoded_image
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
 @app.route('/proxy', methods=['GET'])
 def proxy():
     # クエリパラメータからURLを取得
@@ -45,7 +91,7 @@ def proxy():
     if not url:
         return jsonify({"error": "URL is required"}), 400
 
-    # Curlを使用して画像を取得
+    # curlで画像URLを取得
     result = fetch_images_with_curl(url)
 
     # エラーが発生した場合
@@ -56,8 +102,13 @@ def proxy():
     if not result:
         return jsonify({"message": "No images found"}), 200
 
-    # 取得した画像URLを返す
-    return jsonify({"images": result}), 200
+    # Base64エンコードして画像を表示
+    for img_url in result[:5]:  # 最初の5つだけ試しに表示
+        fetch_and_display_image(img_url)
+
+    # HTMLページを生成して画像を表示
+    return render_template_string(HTML_TEMPLATE, images=result)
 
 if __name__ == '__main__':
     app.run(debug=True)
+
