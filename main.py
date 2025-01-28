@@ -34,9 +34,9 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def fetch_images_with_curl(url):
+def fetch_html_with_curl(url):
     try:
-        # curlコマンドを実行
+        # curlコマンドを実行してHTMLを取得
         curl_command = [
             "curl", "-s", "-L",
             "-A", SAFARI_USER_AGENT,  # SafariのUser-Agentを設定
@@ -51,16 +51,19 @@ def fetch_images_with_curl(url):
         # HTMLコンテンツを取得
         html_content = result.stdout
 
-        # imgタグから画像URLを抽出
-        image_urls = re.findall(r'<img[^>]+src="([^"]+)"', html_content)
-
-        # 絶対URLを生成
-        absolute_urls = [url if url.startswith("http") else url for url in image_urls]
-
-        return absolute_urls
+        return html_content
 
     except Exception as e:
         return {"error": str(e)}
+
+def extract_images_from_html(html_content):
+    # imgタグから画像URLを抽出
+    image_urls = re.findall(r'<img[^>]+src="([^"]+)"', html_content)
+
+    # 絶対URLを生成
+    absolute_urls = [url if url.startswith("http") else url for url in image_urls]
+
+    return absolute_urls
 
 def fetch_and_display_image(image_url):
     try:
@@ -91,24 +94,24 @@ def proxy():
     if not url:
         return jsonify({"error": "URL is required"}), 400
 
-    # curlで画像URLを取得
-    result = fetch_images_with_curl(url)
+    # curlでHTMLを取得
+    html_content = fetch_html_with_curl(url)
 
     # エラーが発生した場合
-    if isinstance(result, dict) and "error" in result:
-        return jsonify(result), 500
+    if isinstance(html_content, dict) and "error" in html_content:
+        return jsonify(html_content), 500
 
-    # 画像が見つからなかった場合
-    if not result:
-        return jsonify({"message": "No images found"}), 200
+    # 画像URLを抽出
+    image_urls = extract_images_from_html(html_content)
 
     # Base64エンコードして画像を表示
-    for img_url in result[:5]:  # 最初の5つだけ試しに表示
+    for img_url in image_urls[:5]:  # 最初の5つだけ試しに表示
         fetch_and_display_image(img_url)
 
     # HTMLページを生成して画像を表示
-    return render_template_string(HTML_TEMPLATE, images=result)
+    return render_template_string(HTML_TEMPLATE, images=image_urls)
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
