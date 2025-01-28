@@ -14,12 +14,18 @@ SAFARI_USER_AGENT = (
     "(KHTML, like Gecko) Version/14.1.2 Safari/537.36"
 )
 
+headers = {
+    "User-Agent": SAFARI_USER_AGENT,
+    "X-Location": "Japan, Kanagawa, Sagamihara, Kamitsuruma",  # 任意のヘッダー
+}
+
+
 def fetch_html_with_curl(url):
     try:
         # curlコマンドを実行してHTMLを取得
         curl_command = [
             "curl", "-s", "-L",
-            "-A", SAFARI_USER_AGENT,  # SafariのUser-Agentを設定
+            "-A", SAFARI_USER_AGENT, headers,  # SafariのUser-Agentを設定
             url
         ]
         result = subprocess.run(curl_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
