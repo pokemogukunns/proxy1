@@ -23,6 +23,7 @@ def fetch_html_with_curl(url):
             "curl", "-s", "-L",
             "-A", SAFARI_USER_AGENT,  # SafariのUser-Agentを設定
             "-H", "X-Location: Japan, Kanagawa, Sagamihara, Kamitsuruma",  # カスタムヘッダーを追加
+            "-H", "X-Forwarded-For: 114.129.4.213",
             url
         ]
         result = subprocess.run(curl_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
