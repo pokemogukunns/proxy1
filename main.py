@@ -2,7 +2,7 @@ import requests
 import subprocess
 import re
 import base64
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, Response
 from PIL import Image
 from io import BytesIO
 
@@ -13,26 +13,6 @@ SAFARI_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Version/14.1.2 Safari/537.36"
 )
-
-# HTMLテンプレート（画像を表示するためのもの）
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Viewer</title>
-</head>
-<body>
-    <h1>Fetched Images</h1>
-    {% for image in images %}
-    <div>
-        <img src="{{ image }}" alt="Image" style="max-width: 100%; height: auto;">
-    </div>
-    {% endfor %}
-</body>
-</html>
-"""
 
 def fetch_html_with_curl(url):
     try:
@@ -59,11 +39,7 @@ def fetch_html_with_curl(url):
 def extract_images_from_html(html_content):
     # imgタグから画像URLを抽出
     image_urls = re.findall(r'<img[^>]+src="([^"]+)"', html_content)
-
-    # 絶対URLを生成
-    absolute_urls = [url if url.startswith("http") else url for url in image_urls]
-
-    return absolute_urls
+    return image_urls
 
 def fetch_and_display_image(image_url):
     try:
@@ -81,7 +57,8 @@ def fetch_and_display_image(image_url):
         # 画像を表示
         image.show()
 
-        return encoded_image
+        # Base64エンコード済み画像URLを生成
+        return f"data:image/jpeg;base64,{encoded_image}"
 
     except Exception as e:
         print(f"Error: {e}")
@@ -92,26 +69,27 @@ def proxy():
     # クエリパラメータからURLを取得
     url = request.args.get('url')
     if not url:
-        return jsonify({"error": "URL is required"}), 400
+        return {"error": "URL is required"}, 400
 
     # curlでHTMLを取得
     html_content = fetch_html_with_curl(url)
 
     # エラーが発生した場合
     if isinstance(html_content, dict) and "error" in html_content:
-        return jsonify(html_content), 500
+        return html_content, 500
 
     # 画像URLを抽出
     image_urls = extract_images_from_html(html_content)
 
-    # Base64エンコードして画像を表示
-    for img_url in image_urls[:5]:  # 最初の5つだけ試しに表示
-        fetch_and_display_image(img_url)
+    # 画像URLをBase64エンコードして表示
+    for img_url in image_urls:
+        encoded_image = fetch_and_display_image(img_url)
+        if encoded_image:
+            # HTMLのsrcにBase64エンコードされた画像URLを挿入
+            html_content = html_content.replace(img_url, encoded_image)
 
-    # HTMLページを生成して画像を表示
-    return render_template_string(HTML_TEMPLATE, images=image_urls)
+    # 修正したHTMLをそのまま返す
+    return Response(html_content, mimetype='text/html')
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
